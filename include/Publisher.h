@@ -32,8 +32,8 @@ namespace ZqPubSub {
             m_pSubscriberList->m_Mutex.lock();
             for (auto itr : m_pSubscriberList->m_List)
             {
-                //auto sub = itr.get();
-                //TODO: push data to subscriber's buffer
+                auto sub = itr.get();
+                sub->PushData(data);
             }
             m_pSubscriberList->m_Mutex.unlock();
         }
