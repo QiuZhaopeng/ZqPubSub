@@ -16,18 +16,27 @@ namespace ZqPubSub {
     public:
         MessageQueue(size_t maxSize = 16) { m_maxSize = maxSize; };
         virtual ~MessageQueue() { };
-
+        
+        /* Pop the last message in the queue  */
         T Pop();
+
+        /* Push a new message into the queue  */
         void Push(const T& msg);
+
+        /* Get the size of the queue  */
         size_t Size();
+
+        /* Pop all the messages in the queue to a vector  */
         void PopAllMessages(std::vector<T>& msgsInQueue);
+
+        /* Pop the message in the queue that is newly received within a given timeout */
         void PopMessageWithTimeout(bool& timeOut, T& msg, int timeout_ms) { /* TODO */ };
 
     private:
-        size_t m_maxSize;               ///< max queue size
+        size_t m_maxSize;                          ///< max queue size
         std::queue<T> m_msgQueue;       ///< queue containing messages
-        mutable std::mutex m_mutex;     ///< mutex for protecting queue data access
-        std::condition_variable m_cv;   ///< condition variable object
+        mutable std::mutex m_mutex;       ///< mutex for protecting queue data access
+        std::condition_variable m_cv;        ///< condition variable object
     };
 
     template<typename T>
@@ -50,6 +59,7 @@ namespace ZqPubSub {
         std::unique_lock<std::mutex> lock(m_mutex);
         while (m_msgQueue.empty())
         {
+            std::cout << "waiting for new inbound message" << std::endl;
             m_cv.wait(lock);
         }
         T data = m_msgQueue.front();
@@ -60,25 +70,26 @@ namespace ZqPubSub {
     template<typename T> 
     void MessageQueue<T>::PopAllMessages(std::vector<T>& msgsInQueue)
     {
-        m_mutex.lock();
-        std::queue<T> tempQueue = m_msgQueue;
-        m_mutex.unlock();
+        std::queue<T> tempQueue;
+        {
+            std::lock_guard<std::mutex> lg(m_mutex);
+            tempQueue = m_msgQueue;
+        }
+
         while (!tempQueue.empty())
         {
             msgsInQueue.push_back(tempQueue.front());
             tempQueue.pop();
-            m_mutex.lock();
+            std::lock_guard<std::mutex> lg(m_mutex);
             m_msgQueue.pop();
-            m_mutex.unlock();
         }
     }
 
     template<typename T>
     size_t MessageQueue<T>::Size()
     {
-        m_mutex.lock();
+        std::lock_guard<std::mutex> lg(m_mutex);
         auto size = m_msgQueue.size();
-        m_mutex.unlock();
         return size;
     }
 }

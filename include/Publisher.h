@@ -12,6 +12,11 @@ namespace ZqPubSub {
     class Publisher
     {
     public:
+        /*
+        *  Constructor funtion of PUblisher
+        *  @param[in] topicName  Topic Name
+        *  @param[in] pSubscriberList pointer object of a subscriber list
+        */
         Publisher(const char* topicName, std::shared_ptr<SubscriberList<T>> pSubscriberList)
         {
             m_topicName = topicName;
@@ -22,6 +27,7 @@ namespace ZqPubSub {
         {
         }
 
+        /* write message data to each subscriber of the corresponding topic  */
         void Publish(const T& data)
         {
             if (m_pSubscriberList == nullptr)
@@ -29,18 +35,18 @@ namespace ZqPubSub {
                 return;
             }
 
-            m_pSubscriberList->m_Mutex.lock();
+            // RAII principle: use lock_guard instead of mutex.lock()...mutex.unlock()
+            std::lock_guard<std::mutex> lg(m_pSubscriberList->m_Mutex);
             for (auto itr : m_pSubscriberList->m_List)
             {
                 auto sub = itr.get();
                 sub->PushData(data);
             }
-            m_pSubscriberList->m_Mutex.unlock();
         }
 
     private:
-        const char* m_topicName;
-        std::shared_ptr<SubscriberList<T>> m_pSubscriberList; 
+        const char* m_topicName;           ///< Topic name of the published message 
+        std::shared_ptr<SubscriberList<T>> m_pSubscriberList; ///< Pointer containing a list of the subscribers of the topic
     };
 }
 #endif  // ZQ_PUBLISHER_H

@@ -10,7 +10,8 @@ namespace ZqPubSub {
 
     template<typename T> class PubSubFactory;
 
-    template<typename T>
+    /* Template class for managing a map containing <topic_name, [publishers]> pairs */
+    template<typename T>   
     class PublisherMap
     {
         friend class PubSubFactory<T>;
@@ -18,7 +19,7 @@ namespace ZqPubSub {
     private:
         static void AddPublisher(const char* topicName, std::shared_ptr<Publisher<T>> sharedPtr)
         {
-            m_Mutex.lock();
+            std::lock_guard<std::mutex> lg(m_Mutex);
             auto itr = m_PublisherMap.find(topicName);
             if (itr == m_PublisherMap.end())
             {
@@ -29,34 +30,33 @@ namespace ZqPubSub {
             else
             {
                 auto subList = itr->second.get();
-                subList->m_Mutex.lock();
+                std::lock_guard<std::mutex> _lg(subList->m_Mutex);
                 subList->m_List.push_back(sharedPtr);
-                subList->m_Mutex.unlock();
             }
-            m_Mutex.unlock();
+
         }
+
         static void Add(const char* topicName)
         {
-            m_Mutex.lock();
+            std::lock_guard<std::mutex> lg(m_Mutex);
             auto itr = m_PublisherMap.find(topicName);
             if (itr == m_PublisherMap.end())
             {
                 auto pList = std::make_shared<PublisherList<T>>();
                 m_PublisherMap.insert({ topicName, pList });
             }
-            m_Mutex.unlock();
         }
 
         static std::shared_ptr<PublisherList<T>> Get(const char* topicName)
         {
             std::shared_ptr<PublisherList<T>>  res = nullptr;
-            m_Mutex.lock();
+            std::lock_guard<std::mutex> lg(m_Mutex);
             auto itr = m_PublisherMap.find(topicName);
             if (itr != m_PublisherMap.end())
             {
                 res = itr->second;
             }
-            m_Mutex.unlock();
+
             return  res;
         }
 
