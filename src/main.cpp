@@ -2,38 +2,44 @@
 #include <thread>
 #include <vector>
 #include "PubSubFactory.h"
+#include "SensorService.h"
+#include "ControlService.h"
 
 int main()
 {
     std::cout << "Start pubsub demo!" << std::endl;
-
-    auto pub = ZqPubSub::PubSubFactory<int>::CreatePublisher("hello");
-    auto pub_task = [&pub]() {
-        int i = 0;
-        while (i < 10)
-        {
-            auto data = 11 * i;
-            pub->Publish(data);
-            std::cout << "--- Publisher publishes: " << data << std::endl;
-            i++;
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        }
-        };
-    auto t1 = std::thread::thread(pub_task);
-
-    auto sub = ZqPubSub::PubSubFactory<int>::CreateSubscriber("hello", 20);
-    for (int j = 0; j < 10; j++)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(600));
-        std::vector<int> res;
-        sub->GetAllData(res);
-        if (!res.empty())
-        {
-            for (auto& item : res)
-            std::cout << "+++ Subscriber receives: " << item << std::endl;
-        }
-    }
     
-    t1.join();
+    std::vector<std::shared_ptr<ZqPubSub::BaseService>> servicesVec; ///< A vector of services references in this demo
+
+    // 2 Sensor Services for IMU and Laser respectively
+    auto s1 = std::make_shared<ZqPubSub::SensorService>("data_imu", "IMU", 11);
+    auto s2 = std::make_shared<ZqPubSub::SensorService>("data_laser", "LIDAR", 3);
+
+    // 2 Control Services for receiving IMU and Laser respectively
+    auto s3 = std::make_shared<ZqPubSub::ControlService>("data_imu", "Drive");
+    auto s4 = std::make_shared<ZqPubSub::ControlService>("data_laser", "Perception");
+
+    // put all the services' pointers into vector
+    servicesVec.push_back(s1);
+    servicesVec.push_back(s2);
+    servicesVec.push_back(s3);
+    servicesVec.push_back(s4);
+
+    // Run each service in servicesVec, remember Run() is virtual function
+    for (const auto& s : servicesVec)
+    {
+        s->Run();
+    }
+
+    // Let main thread run for a long time
+    std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+
+
+    // Stop each service in servicesVec, remember Stop() is virtual function
+    for (const auto& s : servicesVec)
+    {
+        s->Stop();
+    }
+
     return 0;
 }
